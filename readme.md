@@ -32,11 +32,11 @@ Before you begin, ensure you have the following installed:
     ```
     porkbun_ddns_updater/
     ├── src/
-    │   └── main.rs  (Your Rust application code)
+    │   └── main.rs
     ├── Cargo.toml
     ├── Cargo.lock
-    ├── Dockerfile       (Provided in previous steps)
-    └── docker-compose.yml (Provided in previous steps)
+    ├── Dockerfile
+    └── docker-compose.yml
     
     ```
 
