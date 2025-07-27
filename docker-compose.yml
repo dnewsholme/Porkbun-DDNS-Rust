@@ -1,0 +1,31 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  porkbun-ddns:
+    # Build the image from the Dockerfile in the current directory
+    build: .
+    container_name: porkbun-ddns-updater
+    # Environment variables for the Rust application
+    env_file:
+      - .env
+    environment:
+      # Replace with your actual Porkbun API Key
+      PORKBUN_API_KEY: ${PORKBUN_API_KEY}
+      # Replace with your actual Porkbun Secret API Key
+      PORKBUN_SECRET_API_KEY: ${PORKBUN_SECRET_API_KEY}
+      # Replace with your domain (e.g., "example.com")
+      PORKBUN_DOMAIN: ${PORKBUN_DOMAIN}
+      # Comma-separated list of subdomains (e.g., "www,blog,server").
+      # Use an empty string for the root domain, e.g., PORKBUN_SUBDOMAIN="" or PORKBUN_SUBDOMAIN=",www"
+      PORKBUN_SUBDOMAIN: ${PORKBUN_SUBDOMAIN}
+      # Interval between checks in seconds (e.g., "300" for 5 minutes, "600" for 10 minutes)
+      PORKBUN_CHECK_INTERVAL_SECONDS: ${PORKBUN_CHECK_INTERVAL_SECONDS}
+    # Restart the container automatically if it stops, unless explicitly stopped
+    restart: unless-stopped
+    # Optional: If you want to see the logs directly in docker logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
