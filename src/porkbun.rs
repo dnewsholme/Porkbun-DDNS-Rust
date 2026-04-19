@@ -5,8 +5,13 @@ use log::{error, info, warn};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
+const API_BASE_URL: &str = "https://api.porkbun.com/api/json/v3/dns";
+const DEFAULT_TTL: u32 = 600;
+
 // Helper function to deserialize a field that might be an integer or a string into an Option<String>
-fn optional_string_from_int_or_string<'de, D>(deserializer: D) -> std::result::Result<Option<String>, D::Error>
+fn optional_string_from_int_or_string<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -89,7 +94,13 @@ pub struct PorkbunClient<'a> {
 }
 
 impl<'a> PorkbunClient<'a> {
-    pub fn new(client: &'a Client, api_key: &'a str, secret_api_key: &'a str, domain: &'a str) -> Self { // No change here, this is just context
+    pub fn new(
+        client: &'a Client,
+        api_key: &'a str,
+        secret_api_key: &'a str,
+        domain: &'a str,
+    ) -> Self {
+        // No change here, this is just context
         Self {
             client,
             api_key,
@@ -113,80 +124,124 @@ impl<'a> PorkbunClient<'a> {
         };
         info!("Retrieving A record for {} from Porkbun...", full_name);
 
-        let url = format!("https://api.porkbun.com/api/json/v3/dns/retrieveByNameType/{}/A/{}", self.domain, subdomain);
-        let res = self.client.post(url).json(&self.auth_payload()).send().await?;
+        let url = format!(
+            "{}/retrieveByNameType/{}/A/{}",
+            API_BASE_URL, self.domain, subdomain
+        );
+        let res = self
+            .client
+            .post(url)
+            .json(&self.auth_payload())
+            .send()
+            .await?;
 
-        let response_body: RetrieveRecordsResponse = res.json().await.map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
+        let response_body: RetrieveRecordsResponse = res
+            .json()
+            .await
+            .map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
 
         if response_body.status == "SUCCESS" {
             let a_record = response_body.records.and_then(|records| {
-                records.into_iter().find(|r| r.record_type == "A" && r.name == full_name)
+                records
+                    .into_iter()
+                    .find(|r| r.record_type == "A" && r.name == full_name)
             });
 
             if let Some(record) = &a_record {
-                info!("Found existing A record for {}: {}", full_name, record.content);
+                info!(
+                    "Found existing A record for {}: {}",
+                    full_name, record.content
+                );
             } else {
                 warn!("No A record found for {}.", full_name);
             }
             Ok(a_record)
         } else {
-            let message = response_body.message.unwrap_or_else(|| "Unknown error".to_string());
+            let message = response_body
+                .message
+                .unwrap_or_else(|| "Unknown error".to_string());
             error!("Failed to retrieve A record from Porkbun: {}", message);
             Err(DdnsError::PorkbunApi(message))
         }
     }
 
-    pub async fn update_a_record(&self, record_id: &str, subdomain: &str, new_ip: &str) -> Result<()> {
-        info!("Updating A record for {}.{} to new IP: {}", subdomain, self.domain, new_ip);
+    pub async fn update_a_record(
+        &self,
+        record_id: &str,
+        subdomain: &str,
+        new_ip: &str,
+    ) -> Result<()> {
+        info!(
+            "Updating A record for {}.{} to new IP: {}",
+            subdomain, self.domain, new_ip
+        );
 
         let payload = UpdateRecordPayload {
             auth: self.auth_payload(),
             name: subdomain,
             record_type: "A",
             content: new_ip,
-            ttl: 600,
+            ttl: DEFAULT_TTL,
         };
 
-        let url = format!("https://api.porkbun.com/api/json/v3/dns/edit/{}/{}", self.domain, record_id);
+        let url = format!("{}/edit/{}/{}", API_BASE_URL, self.domain, record_id);
         let res = self.client.post(url).json(&payload).send().await?;
 
-        let response_body: ApiResponse = res.json().await.map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
+        let response_body: ApiResponse = res
+            .json()
+            .await
+            .map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
 
         if response_body.status == "SUCCESS" {
-            info!("Successfully updated A record for {}.{} to {}", subdomain, self.domain, new_ip);
+            info!(
+                "Successfully updated A record for {}.{} to {}",
+                subdomain, self.domain, new_ip
+            );
             Ok(())
         } else {
-            let message = response_body.message.unwrap_or_else(|| "Unknown error".to_string());
+            let message = response_body
+                .message
+                .unwrap_or_else(|| "Unknown error".to_string());
             error!("Failed to update A record on Porkbun: {}", message);
             Err(DdnsError::PorkbunApi(message))
         }
     }
 
     pub async fn create_a_record(&self, subdomain: &str, new_ip: &str) -> Result<()> {
-        warn!("Creating new A record for {}.{} with IP: {}", subdomain, self.domain, new_ip);
+        warn!(
+            "Creating new A record for {}.{} with IP: {}",
+            subdomain, self.domain, new_ip
+        );
 
         let payload = CreateRecordPayload {
             auth: self.auth_payload(),
             name: subdomain,
             record_type: "A",
             content: new_ip,
-            ttl: 600,
+            ttl: DEFAULT_TTL,
         };
 
-        let url = format!("https://api.porkbun.com/api/json/v3/dns/create/{}", self.domain);
+        let url = format!("{}/create/{}", API_BASE_URL, self.domain);
         let res = self.client.post(url).json(&payload).send().await?;
 
-        let response_body: ApiResponse = res.json().await.map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
+        let response_body: ApiResponse = res
+            .json()
+            .await
+            .map_err(|e| DdnsError::PorkbunApi(format!("Failed to parse JSON response: {}", e)))?;
 
         if response_body.status == "SUCCESS" {
             info!(
                 "Successfully created new A record (ID: {}) for {}.{} to {}",
                 response_body.id.unwrap_or_else(|| "N/A".to_string()),
-                subdomain, self.domain, new_ip
+                subdomain,
+                self.domain,
+                new_ip
             );
             Ok(())
         } else {
-            let message = response_body.message.unwrap_or_else(|| "Unknown error".to_string());
+            let message = response_body
+                .message
+                .unwrap_or_else(|| "Unknown error".to_string());
             error!("Failed to create A record on Porkbun: {}", message);
             Err(DdnsError::PorkbunApi(message))
         }
