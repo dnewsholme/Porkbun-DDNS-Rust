@@ -1,4 +1,4 @@
-name: Docker publish
+name: Docker Weekly Publish
 
 # This workflow uses actions that are not certified by GitHub.
 # They are provided by a third-party and are governed by
@@ -6,12 +6,13 @@ name: Docker publish
 # documentation.
 
 on:
+  workflow_dispatch:
   schedule:
-    - cron: '19 4 * * 0'
+    - cron: "19 4 * * 0"
   push:
-    branches: [ main,latest ]
+    branches: [ main, latest ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ latest ]
 
@@ -20,7 +21,6 @@ env:
   REGISTRY: docker.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: dnewsholme/porkbun-ddns-rust
-
 
 jobs:
   build:
