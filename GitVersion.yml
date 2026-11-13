@@ -1,0 +1,32 @@
+workflow: TrunkBased/preview1
+mode: ContinuousDeployment
+tag-prefix: '[vV]'
+increment: Patch
+
+major-version-bump-message: '\+semver:\s?(breaking|major)'
+minor-version-bump-message: '\+semver:\s?(feature|minor)'
+patch-version-bump-message: '\+semver:\s?(fix|patch)'
+no-bump-message: '\+semver:\s?(none|skip)'
+
+branches:
+  main:
+    regex: ^master$|^main$|^trunk$
+    is-main-branch: true
+    mode: ContinuousDeployment
+    increment: Patch
+    label: ''
+    prevent-increment:
+      of-merged-branch: false
+
+  feature:
+    regex: feature?[/-]
+    mode: ContinuousDeployment
+    increment: Inherit
+    label: '{BranchName}'
+
+  pull-request:
+    regex: (pull|pr)[/-]
+    mode: ContinuousDelivery
+    increment: Patch
+    label: 'PR-{BranchName}'
+
